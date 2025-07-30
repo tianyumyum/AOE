@@ -1,0 +1,527 @@
+type: csv
+
+zh:
+  Get_predict_legal:
+    Task:
+      Instruction: |
+        你是一个知识获取专家,根据给定的 Query 和 Input_doc, 以 csv 格式输出一个表格
+        请你自己多步解决这个问题
+        Step1: 理解任务要求，分析输入数据。仔细分析 Input_doc 的内容, 识别出与 Query 相关的关键信息。
+        Step2: 设计输出表格结构。设计一个最适合解决该问题的表格结构, 并列出你认为最合适的列名。为这个列名想好schema, 控制列中数据的形式, 形式为字符串列表, 要求：该表格一行表示一个事件/文档/记录。
+        Step3: 实现步骤。提取每份文档中与schema表头中相关的内容，严格按照schema中对于格式以及单位的要求，以csv的形式输出一个单层级表格。
+        Step4: 格式检查。对包含逗号、换行符等特殊字符的字段添加双引号，在特定情况下（如法律条文列表），可考虑将逗号替换为分号、空格或者直接删除逗号，前提是不改变原始数据含义
+
+        Query: 需要解决的问题
+        Input_doc: 输入的文件内容示例
+        Answers: Answers尽量简短，整个回答最多用1500个字回答，对于“简介类”，如“基本案情”的回答尽量简短。不要输出过多的思考过程。
+      Instruction_no_cot: |
+        理解query，根据Input_doc的关键信息按指定结构整理为csv表格，最终输出简洁、规范的csv数据格式。
+      Output: |
+        如果Input_doc中有无法回答的列名，则填 "null"
+        Query: {query}
+        Answers: 
+          <schema>
+           The schema you built
+          </schema>
+          ```csv
+           your output
+          ```
+        Input_doc: {input_doc}
+
+      Example: |
+        Example 1:
+          Query: 作为民事案件分析专家，请根据离婚诉讼案件信息提取关键要素。要求：1) 识别夫妻共同财产 2) 分析子女抚养安排 3) 输出标准化结构
+          Input_doc: 多个离婚判决书，《中华人民共和国婚姻法》
+          
+          Answers:
+            <schema>
+              - name: 案件名
+                about: 案件名称，字符串类型
+                valid_type: exact_match
+              - name: 原被告关系
+                about: 原告与被告的关系描述，如"夫妻关系"
+                valid_type: exact_match
+              - name: 争议财产
+                about: 存在争议的财产清单，字符串列表
+                format: ["房产（地址）","车辆（车牌）","存款金额"]
+              - name: 子女抚养
+                about: 子女抚养权归属及抚养费安排，字符串类型
+              - name: 法律依据
+                about: 判决引用的婚姻法条款
+                format: 《中华人民共和国婚姻法》第XX条
+            </schema>
+            ```csv
+            案件名,原被告关系,争议财产,子女抚养,法律依据
+            王某诉李某离婚纠纷案,夫妻关系,"['上海市浦东新区XX路XX号房产','沪A12345奔驰轿车','银行存款120万元']",婚生子由王某抚养，李某每月支付3000元抚养费,《中华人民共和国婚姻法》第32条；《中华人民共和国婚姻法》第37条
+            陈某与张某离婚后财产分割案,离异夫妻,"['北京市朝阳区XX大厦商铺两间','京N67890特斯拉车辆']",无子女抚养争议,《中华人民共和国婚姻法》第47条
+            ``` 
+
+        Example 2:
+          Query: 作为知识产权法律顾问，请从侵权案件材料中提取核心侵权要素。要求：1) 识别侵权类型 2) 量化侵权损失 3) 关联法律条款
+          Input_doc: 多个知识产权判决书
+          Schema:
+            - name: 案件名
+              about: 案件名称，字符串类型
+            - name: 侵权类型
+              about: 商标/专利/著作权侵权类型
+              format: 字符串枚举值（"商标侵权"、"专利侵权"、"著作权侵权"）
+            - name: 侵权产品
+              about: 侵权产品名称及数量
+            - name: 判赔金额
+              about: 法院判决赔偿金额
+              format: "人民币XX万元"
+            - name: 法律依据
+              about: 主要适用的知识产权法律条款
+              format: 《中华人民共和国XX法》第XX条
+          Answers:
+            ```csv
+            案件名,侵权类型,侵权产品,判赔金额,法律依据
+            某科技公司专利侵权案,专利侵权,"智能手表（型号X3）共计12000件",人民币320万元,《中华人民共和国专利法》第65条
+            某出版社著作权纠纷案,著作权侵权,"《现代汉语大词典》盗版图书5000册",人民币80万元,《中华人民共和国著作权法》第54条
+            ```
+
+  Get_predict_financial:
+    Task:
+      Instruction: |
+        你是一个财务数据分析专家，根据给定的 Query 和 Input_doc，从财务报表中提取指定信息，并以 csv 格式输出。
+        请一步一步完成以下内容并输出结果。
+        Step1: 理解任务要求，分析输入数据。仔细分析 Input_doc 的内容，识别出与 Query 相关的关键信息。
+        Step2: 设计输出表格结构。根据需求设计 Schema, 定义表格的列名和数据类型，确保输出格式规范。
+        Step3: 实现步骤。提取每份文档中与 Schema 表头相关的内容，严格按照 Schema 对格式和单位的要求，以 csv 形式输出一个单层级表格。
+        Step4: 格式检查。对包含逗号、换行符等特殊字符的字段添加双引号，在特定情况下，可考虑将逗号替换为分号、空格或者直接删除逗号，前提是不改变原始数据含义
+
+        处理财务数据时，请注意：
+        - 将金额转换为“元”单位（例如：450万 → 4,500,000）
+        - 保持股本单位为“股”
+        - 提取百分比的数值部分（例如：12.36% → 12.36）
+        - 对于负值以 "$( )$" 表示的，转换为负数（例如：“(1,234)” → -1234）
+        - 保留数值中的千分位逗号，为了便于后续解析，如果是千分位置的逗号，需要用引号包裹（例如："1,234,567"）
+        - 金额保留至个位，收益率保留两位小数。
+      Instruction_no_cot: |
+        你是一个财务数据分析专家，根据给定的 Query 和 Input_doc，从财务报表中提取指定信息，并以 csv 格式输出。
+      Output: |
+        如果 Input_doc 中有无法回答的列名，则填 "null"。
+        Query: {query}
+        Answers尽量简短，整个回答最多用1500个字回答，对于“简介类”，如“基本案情”的回答尽量简短。不要输出过多的思考过程。
+        Answers:
+          <schema>
+           The schema you built
+          </schema>
+          ```csv
+           Your Output
+          ```
+        Input_doc: {input_doc}
+        
+      Example: |
+        Example 1:
+          Query: 企业盈利能力分析：通过核心利润指标与收益质量，评估企业经营效益。需包含毛利率、净利率及收益构成分析。
+          Schema:
+            - name: 文档名称
+              about: 财务报表完整文件名，字符串类型
+              valid_type: exact_match
+            - name: 报表期间
+              about: 报表覆盖会计期间（YYYY年Qn格式）
+              format: 2021年Q4
+            - name: 营业总收入(元)
+              about: 利润表第一行项目数值
+              valid_type: exact_match
+            - name: 毛利率(%)
+              about: （营业收入-营业成本）/营业收入*100，保留两位小数
+            - name: 归母净利润(元)
+              about: 合并利润表中归属于母公司净利润
+              valid_type: exact_match
+            - name: 净利率(%)
+              about: 归母净利润/营业总收入*100，保留两位小数
+            - name: 非经常性损益占比(%)
+              about: 非经常性损益/净利润绝对值*100，保留两位小数
+          Input_doc:
+            - "BBB集团2022年第三季度报告.pdf"
+            - "BBB集团2022年年度报告.pdf"
+          Answers:
+            ```csv
+            文档名称,报表期间,营业总收入(元),毛利率(%),归母净利润(元),净利率(%),非经常性损益占比(%)
+            "BBB集团2022年第三季度报告",2022年Q3,"88,456,789,234",32.15,"9,345,678,123",10.56,2.34
+            "BBB集团2022年年度报告",2022年Q4,"345,678,901,567",30.89,"38,901,234,567",11.25,1.07
+            ```
+        Example 2:
+          Query: 现金流量结构分析：通过三大活动现金流量净额及现金等价物变动，评估企业资金健康度。
+          Schema:
+            - name: 文档名称
+              about: 带扩展名的完整财报文件名
+            - name: 会计年度
+              about: 报表对应完整年度
+              format: YYYY
+            - name: 经营活动净现金流(元)
+              about: 现金流量表经营活动产生的现金流量净额
+              note: 负值需转换格式
+            - name: 投资活动净现金流(元)
+              about: 现金流量表投资活动产生的现金流量净额
+            - name: 筹资活动净现金流(元)
+              about: 现金流量表筹资活动产生的现金流量净额
+            - name: 现金净增加额(元)
+              about: 现金及现金等价物净增加额
+          Input_doc:
+            - "CCC股份2021年度现金流量表.xlsx"
+            - "CCC股份2022年度现金流量表.xlsx"
+          Answers:
+            ```csv
+            文档名称,会计年度,经营活动净现金流(元),投资活动净现金流(元),筹资活动净现金流(元),现金净增加额(元)
+            "CCC股份2021年度现金流量表.xlsx",2021,"12,345,678,901","-2,345,678,912","-8,765,432,109","1,234,567,880"
+            "CCC股份2022年度现金流量表.xlsx",2022,"15,789,012,345","-9,876,543,210","5,432,109,876","11,344,579,011"
+            ```
+        Example 3:
+          Query: 股东权益变动分析：解析股本结构变化与股东权益构成，重点追踪库存股变动及分红政策。
+          Schema:
+            - name: 文档名称
+              about: 股东权益变动表完整文件名
+            - name: 报告期
+              about: 半年度/年度报告标识
+              format: YYYY年半年度/YYYY年年度
+            - name: 股本总数(股)
+              about: 期末普通股总股本
+              valid_type: exact_match
+            - name: 资本公积(元)
+              about: 资本公积金期末余额
+            - name: 库存股变动(股)
+              about: 当期回购/注销股份数量
+              format: 正数表示回购，负数表示注销
+            - name: 现金分红总额(元)
+              about: 利润分配表中现金分红金额
+            - name: 分红占净利润比(%)
+              about: 现金分红总额/归母净利润*100，保留一位小数
+          Input_doc:
+            - "DDD控股2022年半年度权益报告.docx"
+            - "DDD控股2022年年度权益报告.docx"
+          Answers:
+            ```csv
+            文档名称,报告期,股本总数(股),资本公积(元),库存股变动(股),现金分红总额(元),分红占净利润比(%)
+            "DDD控股2022年半年度权益报告.docx",2022年半年度,"8,765,432,109","45,678,901,234",,"2,345,678,901",30.5
+            "DDD控股2022年年度权益报告.docx",2022年年度,"8,765,432,109","43,210,987,654",-12,345,678,"4,567,890,123",42.3
+            ```
+
+en:
+  Get_predict_financial:
+    Task:
+      Instruction: |
+        You are a financial data analysis expert. Based on the given **Query** and **Input\_doc**, extract the specified information from the financial reports and output it in **csv** format. The requirements are:
+
+        **Step 1: Understand the task and analyze the input data.**
+        Carefully analyze the content of the *Input\_doc* to identify the key information relevant to the *Query*.
+
+        **Step 2: Design the output table structure.**
+        Design the schema according to the requirements, defining the column names and data types to ensure the output format is standardized.
+
+        **Step 3: Implement the extraction.**
+        Extract the content from each document that corresponds to the schema headers. Strictly follow the formatting and unit requirements of the schema and output a flat, single-level table in **csv** format.
+
+        **Step 4: Format validation.**
+        Add double quotes around fields that contain commas, newline characters, or other special symbols. In special cases, consider replacing commas with semicolons, spaces, or removing them entirely, *provided that the original meaning of the data is not altered*.
+
+        Extract the following information from the financial reports based on the query and schema requirements:
+        Process financial data by:
+        - "Filename" should be directly extracted from Input_doc, typically as the primary key.
+        - Convert monetary values to the "元" unit (e.g., 450万 → 4,500,000)
+        - Keep share capital in the "Shares" unit
+        - Extract only the numerical part of percentage values (e.g., 12.36% → 12.36)
+        - For negative values indicated by $( )$, convert to a negative number (e.g., "(1,234)" → -1234)
+        - Retain commas in numeric values (e.g., 1,234,567)
+        - Round monetary amounts to the nearest integer and keep percentage rates to two decimal places.
+      Instruction_no_cot: |
+        You are a financial data analysis expert, given the Query and Input_doc, extract the specified information from the financial statements and output it in csv format.
+      Output: |
+        Answers should be a list of dictionaries. Please output directly without additional explanations. If any column names in Input_doc cannot be answered, fill them with "null".
+        Query: {query}
+        Keep answers as brief as possible. The entire response should not exceed 1,500 characters. Do not output excessive reasoning or thought processes.
+        Answers:
+          <schema>
+           The schema you built
+          </schema>
+          ```csv
+           Your Output
+          ```
+        Input_doc: {input_doc}
+        
+      Example: | 
+        Example 1:
+          Query: Analysis of Corporate Profitability: Evaluate the operational efficiency of the enterprise through core profit indicators and earnings quality. Include analysis of gross profit margin, net profit margin, and earnings composition.
+          Input_doc:
+            - "BBB Group 2022 Q3 Report.pdf"
+            - "BBB Group 2022 Annual Report.pdf"
+          Answers:
+            <schema>
+              Schema:
+              - name: Document Name
+                about: Full file name of the financial statement, string type
+                valid_type: exact_match
+              - name: Reporting Period
+                about: Accounting period covered by the report (in YYYY年Qn format)
+                format: 2021年Q4
+              - name: Total Operating Revenue (元)
+                about: Value of the first line item in the income statement
+                valid_type: exact_match
+              - name: Gross Profit Margin (%)
+                about: (Operating Revenue - Operating Cost) / Operating Revenue * 100, rounded to two decimal places
+              - name: Net Profit Attributable to Parent Company (元)
+                about: Net profit attributable to the parent company in the consolidated income statement
+                valid_type: exact_match
+              - name: Net Profit Margin (%)
+                about: Net Profit Attributable to Parent Company / Total Operating Revenue * 100, rounded to two decimal places
+              - name: Non-Recurring Gains/Losses Ratio (%)
+                about: Non-Recurring Gains/Losses / Absolute Value of Net Profit * 100, rounded to two decimal places
+            </schema>
+            ```csv
+            Document Name,Reporting Period,Total Operating Revenue (元),Gross Profit Margin (%),Net Profit Attributable to Parent Company (元),Net Profit Margin (%),Non-Recurring Gains/Losses Ratio (%)
+            "BBB Group 2022 Q3 Report.pdf",2022年Q3,"88,456,789,234",32.15,"9,345,678,123",10.56,2.34
+            "BBB Group 2022 Annual Report.pdf",2022年Q4,"345,678,901,567",30.89,"38,901,234,567",11.25,1.07
+            ```
+
+        Example 2:
+          Query: Cash Flow Structure Analysis: Evaluate the financial health of the enterprise through net cash flows from three major activities and changes in cash equivalents.
+          Input_doc:
+            - "CCC Company 2021 Annual Cash Flow Statement.xlsx"
+            - "CCC Company 2022 Annual Cash Flow Statement.xlsx"
+          Answers:
+            <schema>
+            Schema:
+            - name: Document Name
+              about: Full financial report file name with extension
+            - name: Fiscal Year
+              about: Corresponding full year of the report
+              format: YYYY
+            - name: Net Cash Flow from Operating Activities (元)
+              about: Net cash flow from operating activities in the cash flow statement
+              note: Convert negative values to appropriate format
+            - name: Net Cash Flow from Investing Activities (元)
+              about: Net cash flow from investing activities in the cash flow statement
+            - name: Net Cash Flow from Financing Activities (元)
+              about: Net cash flow from financing activities in the cash flow statement
+            - name: Net Increase in Cash and Cash Equivalents (元)
+              about: Net increase in cash and cash equivalents
+            </schema>
+            ```csv
+            Document Name,Fiscal Year,Net Cash Flow from Operating Activities (元),Net Cash Flow from Investing Activities (元),Net Cash Flow from Financing Activities (元),Net Increase in Cash and Cash Equivalents (元)
+            "CCC Company 2021 Annual Cash Flow Statement.xlsx",2021,"12,345,678,901","-2,345,678,912","-8,765,432,109","1,234,567,880"
+            "CCC Company 2022 Annual Cash Flow Statement.xlsx",2022,"15,789,012,345","-9,876,543,210","5,432,109,876","11,344,579,011"
+            ```
+
+        Example 3:
+          Query: Shareholders' Equity Changes Analysis: Analyze changes in share capital structure and shareholders' equity composition, with a focus on tracking treasury stock changes and dividend policies.
+          Input_doc:
+            - "DDD Holdings 2022 Semi-Annual Equity Report.docx"
+            - "DDD Holdings 2022 Annual Equity Report.docx"
+          Answers:
+            <schema>
+              Schema:
+                - name: Document Name
+                  about: Full file name of the shareholders' equity statement
+                - name: Reporting Period
+                  about: Semi-annual/Annual report identifier
+                  format: YYYY年半年度/YYYY年年度
+                - name: Total Share Capital (股)
+                  about: Total common share capital at the end of the period
+                  valid_type: exact_match
+                - name: Capital Reserve (元)
+                  about: Closing balance of capital reserve
+                - name: Treasury Stock Changes (股)
+                  about: Number of shares repurchased/cancelled during the period
+                  format: Positive values indicate repurchase, negative values indicate cancellation
+                - name: Total Cash Dividends (元)
+                  about: Cash dividend amount in the profit distribution statement
+                - name: Dividend-to-Net Profit Ratio (%)
+                  about: Total Cash Dividends / Net Profit Attributable to Parent Company * 100, rounded to one decimal place
+              </schema>
+            ```csv
+            Document Name,Reporting Period,Total Share Capital (股),Capital Reserve (元),Treasury Stock Changes (股),Total Cash Dividends (元),Dividend-to-Net Profit Ratio (%)
+            "DDD Holdings 2022 Semi-Annual Equity Report.docx",2022年半年度,"8,765,432,109","45,678,901,234",,"2,345,678,901",30.5
+            "DDD Holdings 2022 Annual Equity Report.docx",2022年年度,"8,765,432,109","43,210,987,654",-12,345,678,"4,567,890,123",42.3
+            ```
+
+
+  Get_predict_academic:
+    Task_0:
+      Instruction: |
+        Role: Academic Citation Relationship Analyzer
+        Objective: Extract and analyze citation relationships between academic papers from Markdown files, focusing on identifying cited papers, referencing papers, and the context of citations.
+
+        # Workflow Steps
+        Processing_Pipeline:
+          1. Document_Parsing:
+            - For each Markdown file:
+                a) Extract paper title:
+                  - Method: Read the first H1 header (e.g., "# Title")
+                  - Example: From "0a9a3d696d22bb8283bd629aaf207a6eec81c937.md" → "Comparison Of Single-Trait And Multi-Trait Genome-Wide Association Models..."
+                b) Identify citation markers:
+                  - Author-year format: "(Author et al., YYYY)"
+                  - Numeric format: "[N]"
+                  - Ensure all citation markers are captured, including variations (e.g., "(Author, YYYY)", "[N, M]")
+
+          2. Table_Schema_Design:
+            - Define output table structure:
+              - Columns: ["Referencing_Paper_Title", "Cited_Paper_Title", "Citation_Context", "Citation_Purpose", "Citation_Marker"]
+              - Data Types: [String, String, String, String, String]
+            - Ensure schema supports downstream analysis (e.g., citation network graphs)
+
+          3. Citation_Linking:
+            - For each citation marker:
+                a) Locate corresponding reference entry:
+                  - Check "# References" section or equivalent
+                  - Match numeric markers to entries (e.g., "[N] Full citation text")
+                  - Match author-year markers to entries (e.g., "Author et al. (YYYY) Title...")
+                b) Extract cited paper title and reference paper title:
+                  - Method: Parse from reference entry (e.g., "Dauphin et al. Language Modeling... → title")
+                c) Capture context window:
+                  - Extract 2 sentences before/after citation marker
+                  - Classify citation purpose using predefined labels:
+                    - Labels: ["background", "methodology", "comparison", "data_source", "supporting_evidence", "limitation"]
+
+          4. Data_Structuring:
+            - Create csv entry for each citation occurrence:
+              - Format: [Referencing_Paper_Title, Cited_Paper_Title, Citation_Context, Citation_Purpose, Citation_Marker]
+            - Ensure flat, single-layer table format for compatibility with analysis tools
+            - Ensure the output can be parsed using pd.read_csv() without errors.
+              For any text field (especially Citation_Context) that contains commas, newlines, or quotation marks:
+              Wrap the field in double quotes (").
+              Escape inner double quotes by doubling them (""), if necessary.
+              In special cases, consider replacing internal commas with semicolons or spaces only if it does not change the meaning of the original content.
+
+        # Execution Guidelines
+        - Input: Markdown files containing academic papers with citations
+        - Output: Structured csv file with citation relationships
+        - Key Requirements:
+          1. Extract paper titles directly from H1 headers in Markdown files.
+          2. Identify all citation markers, including variations (e.g., "(Author, YYYY)", "[N, M]").
+          3. Match citation markers to reference entries accurately.
+          4. Capture citation context (2 sentences before/after) and classify purpose.
+          5. Output a flat table with strict adherence to the schema.
+      Instruction_no_cot: |
+        You are an Academic Citation Relationship Analyzer, given the Query and Input_doc, extract the specified information and output them in csv format.
+      Output: |
+        If any column names in Input_doc cannot be answered, fill them with "null".
+        Query: {query}
+        Keep answers as brief as possible. The entire response should not exceed 1,500 characters. Do not output excessive reasoning or thought processes.
+        Answers: 
+          <schema>
+           The schema you built
+          </schema>
+          ```csv
+           your output
+          ```
+        Input_doc: {input_doc}
+      Example: |
+        Example :
+          Query: Identify citation relationships among the articles, including the referencing paper title, cited paper title, citation context, and citation purpose. Each citation occurrence should be one row.
+          Input:
+            "input_doc": [
+              454bfea18aebae023e9a716503e3a9956dcea8b4.md
+              "Temporal Knowledge Question Answering via Abstract Reasoning Induction",
+              "Language Modeling with Gated Convolutional Networks.md"
+               "Primal-Attention Self-attention through Asymmetric Kernel SVD in Primal Representation.md"
+            ],
+          Answers: 
+            <schema>
+              Schema: 
+                columns:
+                - name: paper_name
+                  valid_type: exact_match
+                - name: method
+                  valid_type: fuzzy_match
+                - name: result
+                  valid_type: float
+                - name: models_and_settings
+                  valid_type: fuzzy_match
+            </schema>
+            ```csv
+              Cited paper title,Referencing paper title,Referenced content,Label
+              "M4le: A multi-ability multirange multi-task multi-domain long-context evaluation benchmark for large language models.","FanOutQA: A Multi-Hop, Multi-Document Question Answering Benchmark for Large Language Models","M4le:(Shaham et al., 2023) focus on intradocument dependencies or dependencies between",background
+              "M4le: A multi-ability multirange multi-task multi-domain long-context evaluation benchmark for large language models.","FanOutQA: A Multi-Hop, Multi-Document Question Answering Benchmark for Large Language Models","and others also evaluate different aspects of long context reasoning through subjective summarization tasksM4le M4le:(Shaham et al., 2023)or text span reord ",background
+              "Language Modeling with Gated Convolutional Networks","Temporal Knowledge Question Answering via Abstract Reasoning Induction","We introduce KG2Instruction which initially aligns the method mention in KG Language Modeling [2] with Gated Convolutional Networks with existing corpora to automatically generate relational triples; it then supplements missing triples by leveraging an open-sourced LLM incrementally trained on a small set of manually annotated data to address the incompleteness of KG.…",methodology
+              "Language Modeling with Gated Convolutional Networks","Temporal Knowledge Question Answering via Abstract Reasoning Induction","[2]making it a monolingual dataset. It may be plausible to create parallel datasets using the same provided Wikipedia pages",methodology
+            ```
+
+    Task_1:
+      Instruction: |
+        Role: You are an expert in academic paper analysis and information extraction
+    
+        Input:
+          - query: String containing dataset and metric requirements
+          - input_doc: Academic paper content or identifier
+
+        Processing_Steps:
+          Step_1: Content Analysis
+            Description: Analyze the input document and identify key performance metrics
+            Requirements:
+              - Identify target dataset name. If Input_doc contains content, extract the paper title from it; if Input_doc only contains numbers, extract the title from the Markdown file, generally used as the primary key.
+              - Locate performance metrics
+              - Verify experimental settings
+              - Extract numerical results
+          Step_2: Data Structuring
+            Description: Match and format extracted data according to schema
+            Field_Rules:
+              paper_name:
+                - Must exactly match the original document title
+                - Required field, no null values allowed
+              method:
+                - Allows fuzzy matching using regex
+                - Should capture the main algorithm/approach
+              result:
+                - Must be formatted as float
+                - Remove any units or additional text
+              models_and_settings:
+                - Include relevant experimental configurations
+                - Use 'null' if not specified
+          Step_3: Output Formatting
+            Requirements:
+              - Follow exact schema structure
+              - No additional explanations or text
+              - Answers should be concise
+              - Use 'null' for missing values
+          Query: The question to be answered 
+          Input_doc: The input paper title and content of papers
+          Output Format: CSV, enclosed in triple backticks (```csv  ``` ) 
+
+          
+          For result-based queries, just ouput a string float in the "result" field (refer to Example 2). No extra words.
+      Instruction_no_cot: |
+        You are an expert in academic paper analysis and information extractionr, given the Query and Input_doc, extract the specified information and output them in csv format.
+
+      Output: |
+        If any column names in Input_doc cannot be answered, fill them with "null".
+        Query: {query}
+
+        Answers:
+          <schema>
+          The schema you built
+          </schema>
+          ```csv
+           Your Output
+          ```
+        Input_doc: {input_doc}
+
+      Example: |
+       Example 1:
+        Query: "列出论文中提出的方法在xxxx数据集上xxxx指标对应的效果"
+        Input:
+          "input_doc": [
+              "Core-Focus: Self-Attention via Symmetric Kernel Decomposition in Primary Space",
+              "RetrievalBoost-ImageGen: A Query-Enhanced Image Synthesis Model",
+              "TransformerV3-Diffusion: Multi-Scale Vision-Language Diffusion Framework",
+            ],
+        Answers:
+          <schema>
+            Schema: 
+              - name: "Paper_name"
+                valid_type: "GateLoop Fully Data-Controlled Linear Recurrence for Sequence Modeling"
+              - name: "method"
+                valid_type: "fuzzy_match"
+              - name: "result"
+                valid_type: "float"
+              - name: "models_and_settings"
+                valid_type: "fuzzy_match"
+          </schema>
+
+          ```csv
+            paper_name,method,result,models_and_settings
+            "Core-Focus: Self-Attention via Symmetric Kernel Decomposition in Primary Space","Primal.+Trans.","24.3",""
+            "RetrievalBoost-ImageGen: A Query-Enhanced Image Synthesis Model","GCNN-8","64.2","recall@k"
+            "TransformerV3-Diffusion: Multi-Scale Vision-Language Diffusion Framework","GateLoop","19.4","large"
+          ```

@@ -1,0 +1,15 @@
+base_path: "your_path_to_code_for_AOE"
+
+paths:
+  base_path: "{base_path}"
+  root_key: "{base_path}/output_v5"
+  data:
+    data_input: "{base_path}/data/all_v4.jsonl"
+    law_docx: "{base_path}/data/law_docx"
+    academic: "{base_path}/data/academic"
+    financial: "{base_path}/data/financial"
+  logs: "{base_path}/logs" 
+  api_key: ""
+  cip_base_url: ""
+  base_url: ""
+  eval_model_name: "Qwen2.5-72B-Instruct-GPTQ-Int4"

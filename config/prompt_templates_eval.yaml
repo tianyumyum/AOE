@@ -1,0 +1,509 @@
+Overall_eval:
+  Instruction: |
+    # 评估任务说明
+    作为专业评估员，需根据query严格对比Gold Answer与Predict Answer的CSV输出质量，评估维度包括：
+
+    ## 核心评估维度
+
+    1.  Intent Understanding: <score1>{int}</score1>/100
+        评估Predict Answer对Query中提出的数据提取或组织需求的理解准确度。核心在于模型是否抓住了Query的意图，明确了需要提取或组织的数据点类型、它们之间的关系以及最终表格应反映的核心信息。
+        * **满分 (100):** 对Query的所有要求理解完全准确，无任何偏差或遗漏。能清晰识别核心任务（例如：是提取特定内容，还是仅识别关系；是提取实体，还是提取事件）。
+        * **高分 (80-99):** 对Query主要意图理解准确，但可能在某个次要细节或隐含要求上存在轻微误解，不影响核心任务的执行方向。
+        * **中低分 (40-79):** 对Query的核心意图存在部分理解偏差或混淆，抓住了部分信息点但未能完全区分不同类型的信息，或对数据之间的关系理解有误。Schema结构可能部分反映了这种误解。
+        * **低分 (1-39):** 对Query的核心意图存在严重理解偏差或根本性误解，将任务导向了完全不同的方向，或只抓住了Query中的隻言片语。表格结构与Query要求差异巨大。
+            * **示例关联 (15/100):** 捕捉到了“引用关系”，但未理解“提取**特定被引内容**”这一核心要求，误将其等同于“列出围绕引用的上下文”。这属于对核心任务理解的严重偏差，因此得分很低。
+        * **零分 (0):** 输出与Query要求完全无关，或无法判断其对Query有任何理解。
+        ▶ 评分区间：0-100
+
+    2.  Schema Construction: <score2>{int}</score2>/100
+        评估Predict Answer 构建的Schema（列名/表头）的完整性与准确性。即，模型是否正确识别并包含了Query要求的所有必要信息字段，是否排除了无关字段，以及字段命名是否清晰准确。
+        * **满分 (100):** 构建的Schema完全匹配Query的要求或Gold Answer的结构，包含了所有必需的列，没有多余或错误的列。列名准确、清晰地反映了该列应包含的数据内容。
+        * **高分 (80-99):** Schema基本完整且正确，包含了绝大多数必需的列，可能遗漏1-2个次要列，或包含1-2个轻微无关或命名稍欠佳的列。核心结构正确。
+        * **中低分 (40-79):** Schema存在显著缺失，遗漏了多个重要列，或包含了较多无关/错误的列。构建的Schema结构与Query的要求有一定偏差，未能准确反映所需数据的整体结构。
+        * **低分 (1-39):** Schema极度不完整或错误百出，遗漏了几乎所有关键列，或绝大部分是无关列。构建的Schema与Query的要求差异巨大，无法用于组织Query所需的核心信息。
+        * **零分 (0):** 未能生成任何Schema（无表头），或生成的Schema与Query要求完全无关。
+        ▶ 评分区间：0-100
+
+    3.  Content Accuracy: <score3>{int}</score3>/100
+        评估Predict Answer填充到表格中**具体数据内容**的正确性。基于Predict Answer构建的Schema，检查已填充的每个字段的数据值是否与Input Doc或Gold Answer（如果Query明确要求对比GA）中的信息精确一致，没有错误、捏造或不相关的部分。
+        * **满分 (100):** 表格中所有已填充的数据值都精确、无误地反映了Input Doc中的对应信息，与Gold Answer对比（如适用）完全一致。
+        * **高分 (80-99):** 绝大多数数据值正确，仅存在少量细微错误（如拼写错误、多余的空格、日期格式微小差异等），不影响对信息基本正确的判断。
+        * **中低分 (40-79):** 存在较多数据值不准确，或提取的数据是相关的但不够精确（如提取了包含目标信息的句子而不是精确短语），或部分捏造了数据。信息准确率一般。
+            * **示例关联 (20/100):** 被引论文相关，引用上下文“大致相关”（部分准确），但提取的“被引内容通常更宽泛而非精确片段”（核心字段的数据不准确）。这表明关键信息的准确性问题严重，导致得分很低。
+        * **低分 (1-39):** 绝大部分填充的数据值都是错误的、不相关的或完全捏造的（幻觉）。数据的可靠性极低。
+        * **零分 (0):** 表格中填充的所有数据都是错误的、无关的或完全捏造的。
+        ▶ 评分区间：0-100
+
+    4.  Format Compliance: <score4>{int}</score4>/100
+        评估Predict Answer的输出文件是否严格遵循了Query或任务说明中指定的格式要求，特别是CSV基础格式（分隔符、引号使用、换行符、文件编码等）以及任何特殊的格式要求（如某些列的内容本身是嵌套的JSON、XML等）。
+        * **满分 (100):** 输出文件严格遵守了所有格式规范，包括CSV的基础结构和任何特殊嵌套格式要求，文件可被标准解析器无错读取。
+        * **高分 (80-99):** 输出文件基本符合格式要求，可被标准解析器读取，但存在少量不影响整体解析的次要格式问题（如末尾多余空行、个别不一致的引号使用等）。
+        * **中低分 (40-79):** 输出文件尝试符合目标格式，但存在导致部分解析错误或警告的格式问题（如分隔符不一致、特殊字符处理不当、嵌套格式内部错误等），可能需要手动修正才能完全解析。
+        * **低分 (1-39):** 输出文件的整体格式与要求不符（如输出Markdown、纯文本等非CSV格式），或文件严重损坏、格式混乱，无法被标准解析器有效读取和解析，需要大量手动修正。
+            * **示例关联 (10/100):** 输出是Markdown格式，与要求的CSV格式完全不符。这是根本性的格式错误，因此得分非常低。
+        * **零分 (0):** 未生成输出文件，或输出是完全无法理解的乱码/二进制文件。
+        ▶ 评分区间：0-100
+
+    ## 评分解析标记
+    最终输出需包含可解析的分隔符，且分数为整数：
+    -   具体维度分数标记：
+        <score1>{int}</score1>  # 对应 Intent Understanding
+        <score2>{int}</score2>  # 对应 Schema Construction
+        <score3>{int}</score3>  # 对应 Content Accuracy
+        <score4>{int}</score4>  # 对应 Format Compliance
+        
+
+  Output: |
+      Query: {query}
+
+      Gold Answer csv: {gold_csv_txt}
+      Predict Answer csv: {predict_csv_txt}
+
+      Output:
+      <output>
+        1. Intent Understanding: <score1>score1</score1>/100 | 理由：
+        2. Schema Construction:  <score2>score2</score2>/100 | 理由：
+        3. Content Accuracy: <score3>score3</score3>/100 | 理由：
+        4. Format Compliance:  <score4>score4</score4>/100 | 理由：
+      </output>
+
+  Examples: |
+      - 示例1（法律类）:
+        Query: "作为法律专业AI，请列出这些案件中不同被告的判决结果"
+
+        Gold Answer csv:
+          案件名,被告,基本案情,罪名,刑期,处罚金,没收个人财产,其他判决
+          吴某某受贿违法所得没收案,吴某某,吴某某2010年12月至2015年春节前，任无锡市某局局长兼某集团总公司党委书记、总经理，某管委会副主任，利用职务便利为他人谋取利益，23次收受财物共计133.33234万元。,受贿罪,,,没收被告人吴某某实施受贿犯罪所得马踏飞燕金条一块、周生生牌千足金金币一枚、萧邦牌女士手表一块、普拉达牌公文包一只、袋鼠牌公文包一只、用于购买江苏省宜兴市某小区别墅的十万元购房款及相应增值部分，上缴国库,驳回江苏省无锡市人民检察院没收被告人吴某某实施受贿犯罪所得的银行账户中资金人民币四十一万八千零七十元一角，大润发超市购物卡四张、大东方百货储值卡四张、乐购超市购物卡一张，依莲珠宝千足金条一块、欧米茄牌手表一块的申请。裁定没收的财物上缴国库，不予没收的财物已解除查封、扣押及冻结手续，发还利害关系人。
+          寿某年受贿案,寿某年,1999年至案发，寿某年任某县县长、某区区长、区委书记、某市委常务副市长期间，利用职务便利，为某置业有限公司等单位提供帮助，单独或与特定关系人共同收受财物1144万余元。其中，低价购房三套，差额共计281.7515万元。案发后自首，涉案款物均已追缴，退缴赃款352.5294万元。,受贿罪,有期徒刑八年,处罚金人民币六十万元,,
+          巴某某受贿案关键词：刑事 受贿罪 追逃追赃 劝返 罪名变更 量刑情节,巴某某,2004年至2005年，巴某某受齐某某（成都铁路局原局长）指示，为甲公司、乙公司在工程事项上提供帮助，收受贿赂共计2190万元，其中转交齐某某550万元，个人占有1640万元。2014年3月20日，巴某某逃至加拿大，2016年4月6日回国投案，退缴全部违法所得。,受贿罪,有期徒刑三年,处罚金人民币一百五十万元,,将被告人巴某某退出的违法所得共计1640万元，予以追缴，并上缴国库。
+
+        Predict Answer csv:
+          案件名,被告,判决结果,罚金,违法所得
+          吴某某受贿违法所得没收案,吴某某,一、没收被告人吴某某实施受贿犯罪所得马踏飞燕金条一块、周生生牌千足金金币一枚、萧邦牌女士手表一块、普拉达牌公文包一只、袋鼠牌公文包一只、用于购买江苏省宜兴市某小区别墅的十万元购房款及相应增值部分，上缴国库；二、驳回江苏省无锡市人民检察院没收被告人吴某某实施受贿犯罪所得的银行账户中资金人民币四十一万八千零七十元一角，大润发超市购物卡四张、大东方百货储值卡四张、乐购超市购物卡一张，依莲珠宝千足金条一块、欧米茄牌手表一块的申请。,null,上缴国库的没收财物及不予没收的财物已解除查封、扣押及冻结手续，发还利害关系人
+          寿某年受贿案,寿某年,被告人寿某年犯受贿罪，判处有期徒刑八年，并处罚金人民币六十万元。,人民币六十万元,已追缴到案，其中寿某年通过家属退缴赃款352.5294万元
+          巴某某受贿案,巴某某,一、被告人巴某某犯受贿罪，判处有期徒刑三年，并处罚金人民币一百五十万元；二、将被告人巴某某退出的违法所得共计1640万元，予以追缴，并上缴国库。,人民币一百五十万元,1640万元上缴国库
+
+        Output:
+        <output>
+          <score1>85</score1>/100 | Intent Understanding (意图理解): 模型准确理解了 Query 的核心意图——“列出...判决结果”。它没有简单罗列所有案件信息，而是尝试聚焦于判决相关的内容。Schema 中的“判决结果”、“罚金”、“违法所得”列都直接响应了这个意图。扣分在于，Gold Answer 提供的实际上是更完整的案件信息，而 Predict Answer 的“判决结果”列有时包含了非常详细的描述，部分内容（如驳回检察院申请的细节）可能超出了“核心判决结果”的范畴，略显冗余，但主要意图把握准确。它识别了需要针对“不同被告”进行信息组织。
+          <score2>75</score2>/100 | Schema Construction (模版构建):  Predict Answer 构建的 Schema (案件名,被告,判决结果,罚金,违法所得) 是合理的，并且与 Query 的意图相关。相较于 Gold Answer 中隐含的“刑期”、“没收个人财产”等更细致的判决结果分类，Predict Answer 的 Schema 相对概括。例如，"刑期" 信息被包含在了 "判决结果" 的文本描述中，而没有单独列出，这使得结构化程度稍弱。
+          <score3>80</score3>/100 | Content Accuracy (内容准确性): 对吴某某案“罚金”的处理不够明确（是无罚金还是未知）。“判决结果”列有时过于冗长，虽然内容本身大部分源于原文，但作为摘要性质的“判决结果”列，可以更凝练核心判项。这轻微影响了作为“精确提取”的质量。没有将“刑期”这样的关键结构化信息从“判决结果”文本中剥离出来单独成列（这与Schema问题相关，但也影响内容呈现的精确性）。
+          <score4>95</score4>/100 | Format Compliance (格式合规性): 输出是标准的 CSV 格式        
+        </output>
+
+      - 示例2（科研类）:
+          Query: "Identify possible citation relationships among the following articles, understand, and provide the specific content being cited from the cited article."
+
+          Gold Answer csv:
+            Cited paper title,Referencing paper title,Referenced content,Label
+            More Than Spoken Words: Nonverbal Message Extraction and Generation,ConceptNet 5.5: An Open Multilingual Graph of General Knowledge,"Thus, we use the human-annotated argu-ment pairs such as ( “someone holds an umbrella” , “it is raining” ) in the Chinese set of commonsense knowledge ConceptNet (Speer et al., 2017) by regarding the two arguments as the input and the NM, respectively.",methodology
+            More Than Spoken Words: Nonverbal Message Extraction and Generation,Know What You Don’t Know: Unanswerable Questions for SQuAD,"…an extractor (e.g., similar to the formulation and implementation to address the unanswerable questions in machine reading comprehension tasks (Rajpurkar et al., 2018)) or generator (e.g., simply using a pre-defined answer such as “empty” or “none” as the NM of these instances), though this…",background
+
+          Predict Answer csv:
+            | Referencing Paper Title | Cited Paper Title | Citation Context | Citation Purpose | Citation Marker |
+            |-------------------------|-------------------|------------------|------------------|-----------------|
+            | More Than Spoken Words: Nonverbal Message Extraction And Generation | Breazeal et al. (2005) | "Nonverbal messages (NM), such as facial expressions, body movements, and tones of voice, can complement or modify verbal messages as well as improve the teamwork efficiency (Breazeal et al., 2005) and effectiveness of face-to-face communication (Phutela, 2015)." | background | (Breazeal et al., 2005) |
+            | More Than Spoken Words: Nonverbal Message Extraction And Generation | Phutela (2015) | "Nonverbal messages (NM), such as facial expressions, body movements, and tones of voice, can complement or modify verbal messages as well as improve the teamwork efficiency (Breazeal et al., 2005) and effectiveness of face-to-face communication (Phutela, 2015)." | background | (Phutela, 2015) |
+            | More Than Spoken Words: Nonverbal Message Extraction And Generation | Csaky and Recski (2021) | "NMs are also seldom included in existing text-based dialogue tasks that mainly focus on verbal messages (Csaky and Recski, 2021)." | background | (Csaky and Recski, 2021) |
+            | More Than Spoken Words: Nonverbal Message Extraction And Generation | Zhang et al. (2018) | "Though human readers can infer missing NMs based on their own knowledge, machines still have difficulty understanding the meanings behind and beyond the words (Zhang et al., 2018) and automatically decide what nonverbal behaviors they should display in interactions (Saunderson and Nejat, 2019)." | background | (Zhang et al., 2018) |
+            | More Than Spoken Words: Nonverbal Message Extraction And Generation | Saunderson and Nejat (2019) | "Though human readers can infer missing NMs based on their own knowledge, machines still have difficulty understanding the meanings behind and beyond the words (Zhang et al., 2018) and automatically decide what nonverbal behaviors they should display in interactions (Saunderson and Nejat, 2019)." | background | (Saunderson and Nejat, 2019) |
+            | More Than Spoken Words: Nonverbal Message Extraction And Generation | Vassiliou (2006) | "To the best of our knowledge, this is the first work studying the automatic extraction of NMs from unstructured corpora (Vassiliou, 2006)." | background | (Vassiliou, 2006) |
+            | More Than Spoken Words: Nonverbal Message Extraction And Generation | Wang (2017) | "To the best of our knowledge, this is the first work studying the automatic extraction of NMs from unstructured corpora (Vassiliou, 2006; Wang, 2017; Sun et al., 2022)." | background | (Wang, 2017) |
+
+          Output:
+          <output>
+            <score1>40</score1>/100 | Intent Understanding (意图理解): Query要求“Identify possible citation relationships”（识别引用关系）、“understand”（理解）并“provide the specific content being cited from the cited article”（提供被引文献中的特定被引内容）。预测结果成功识别了引用关系（输出了多组引用文献和施引文献对），并包含了“Citation Context”（引用上下文），这表明模型理解了任务是关于论文引用。但是，模型未能理解或执行最核心的要求——“提供被引文献中的特定被引内容”，而是提取了施引文献中引用标注周围的“引用上下文”。这是对Query核心提取目标和数据来源的重大误解，导致核心任务失败，因此得分在中低分范围。
+            <score2>30</score2>/100 | Schema Construction:  理由：模型构建的Schema (`Referencing Paper Title`, `Cited Paper Title`, `Citation Context`, `Citation Purpose`, `Citation Marker`) 与Query的核心要求（提取“被引内容”）存在偏差。
+            <score3>20</score3>/100 | Content Accuracy (内容准确性): Query要求提供准确的“被引文献中的特定被引内容”。预测结果提供的“Citation Context”是施引文献中的文本，而非被引文献中的精确内容，这在内容类型上是完全不准确的。此外，预测结果识别并提取数据的引用关系（如Breazeal et al., 2005被引）与Gold Answer中作为示例给出的引用关系（Speer et al., 2017被引, Rajpurkar et al., 2018被引）不同。这意味着预测结果不仅提取了错误类型的内容，很可能也没有准确识别Query或文档中特定示例要求的引用信息。内容的准确性极低。
+            <score4>10</score4>/100 | Format Compliance (格式合规性): Gold Answer以CSV格式提供，Query也暗示了需要结构化输出（如表格），标准的学术数据提取任务通常要求CSV或JSON等易于机器解析的格式。然而，预测结果输出的是Markdown表格格式。Markdown表格虽然具有结构，但不符合标准的CSV格式要求，无法被CSV解析器直接读取。这属于格式与要求不符的严重错误，因此得分很低。          
+          </output>
+
+      - 示例3 (Financial Report Case):
+          Query: "Evaluate the profitability and financial health of the company based on its annual financial report data, and identify trends across multiple years."
+
+          Gold Answer CSV:
+            Year, Revenue, Net Profit, Gross Margin, Operating Expenses, Return on Equity, Debt-to-Equity Ratio
+            2021, 10,500, 1,200, 32%, 2,800, 18%, 0.35
+            2020, 9,200, 1,000, 28%, 2,500, 15%, 0.40
+            2019, 8,000, 800, 30%, 2,000, 12%, 0.45
+
+          Predict Answer CSV:
+            Year,Revenue,Net Profit,Gross Margin,Operating Expenses,Return on Equity
+            2021,10500,900,32%,2800,18%
+            2020,9200,1000,28%,5000,15%
+            2019,8000,800,30%,2000,12%
+
+          Output:
+            <output>
+              1. Intent Understanding: <score1>90</score1>/100 | 理由：模型基本正确理解了Query的意图，即提取用于评估公司盈利能力和财务健康的关键财务指标，并按年份组织以识别趋势。所选取的指标（如收入、净利润、毛利率、运营费用、股本回报率）都是相关的。虽然 Query 中未明确列出所有指标，但模型选择的指标是合理的。轻微扣分是因为Query也提到了“financial health”，而“Debt-to-Equity Ratio”这类杠杆/偿债能力指标在Gold Answer中有体现，但在Predict Answer中缺失，这使得对“financial health”的评估不够全面。
+              2. Schema Construction:  <score2>80</score2>/100 | 理由：Predict Answer 构建的 Schema (`Year,Revenue,Net Profit,Gross Margin,Operating Expenses,Return on Equity`) 在很大程度上是准确和相关的，包含了评估盈利能力所必需的核心列。与Gold Answer对比，Predict Answer 遗漏了 `Debt-to-Equity Ratio` 这一列，该列对于评估财务健康（特别是偿债能力和财务风险）至关重要。因此，Schema 在反映“财务健康”这一维度上不够完整。其他列名清晰准确。
+              3. Content Accuracy: <score3>70</score3>/100 | 理由：大部分数据与Gold Answer一致，但也存在显著差异：
+                *   **2021 Net Profit:** Predict 为 900，Gold 为 1200。这是一个关键盈利指标的显著差异。
+                *   **2020 Operating Expenses:** Predict 为 5000，Gold 为 2500。这是一个运营效率指标的重大差异。
+                其他数据点（Revenue, Gross Margin for all years, Operating Expenses for 2021 & 2019, Return on Equity for all years, Net Profit for 2020 & 2019）与Gold Answer一致。由于两个关键数据点的错误较大，对整体内容准确性有较大影响。
+              4. Format Compliance:  <score4>95</score4>/100 | 理由：Predict Answer 严格遵循了标准的CSV格式。使用了逗号作为分隔符，数据行与表头对应。与Gold Answer相比，Predict Answer的CSV在列名和数据之间没有空格，这是一种更紧凑但完全有效的CSV格式。Gold Answer在分隔符后有空格，两种都是可接受的CSV。没有复杂的嵌套或特殊字符问题。因此格式符合性很高。轻微扣分是基于一种非常严格的视角，即Gold Answer的风格（带空格）可能被视为一种更“美观”的默认设定，但从技术上讲，Predict Answer的格式没有问题。
+            </output>
+
+Row_evaluation:
+  Instruction: |
+    **任务:** 你是一个表格行匹配助手。给定一个来自预测表格的**复合主键信息**（由多个字段组成）和一个来自标准表格的**标准主键信息列表**，请严格判断标准列表中是否存在与预测信息**所有字段完全匹配**的条目。
+
+    **匹配规则:**
+    1. **复合主键全匹配原则**：只有当预测主键的**每一个字段**都能在标准列表中找到**完全一致**的对应值时，才视为有效匹配（忽略格式差异如大小写、标点、前后缀，但是具体语义相关不能错误）。
+    2. **精确性优先**：若存在字段内容相同但表现形式不同（如 `"001"` vs `"1"`），视为不匹配。
+    3. **唯一性要求**：标准列表中必须存在**完全相同的复合主键组合**，部分字段匹配（即使其他字段语义相近）均返回 `None`。
+    4. **严格空值处理**：若预测主键中存在空字段（如 `""` 或 `NaN`），直接返回 `None`。
+  Output: |
+    **输入:**
+    预测的主键信息:
+    {mapped_key_value}
+
+    标准主键信息列表:
+    {gold_key_list_str}
+
+    **输出要求:**
+    请直接输出匹配上的<output>标准主键信息的精确文本</output>，或者输出 <output>None</output>。不要添加任何解释或多余的文字。
+
+    **输出:**
+    <output>xxxx</output>
+
+  Examples: |
+    Example 1:
+      **输入:**
+      预测的主键信息：
+      ("ID-2023", "Project Alpha")
+
+      标准主键信息列表：
+      - ("ID-2023", "Project Alpha")
+      - ("ID-2024", "Project Beta")
+
+      **输出:**
+      <output>("ID-2023", "Project Alpha")</output>
+
+    Example 2:
+      **输入:**
+      预测的主键信息：
+      ("ID-2023", "Alpha Project")  # 字段顺序不同
+
+      标准主键信息列表：
+      - ("ID-2023", "Project Alpha")
+      - ("ID-2023", "") # 缺项
+
+      **输出:**
+      <output>None</output>  # 所有字段未完全匹配
+    
+
+
+
+Cell_evaluation:
+  Instruction: |
+    You are an expert evaluator strictly comparing text extracted into a table cell based ONLY on the provided Gold Standard and Predicted Text for the given Column Name. Adhere ONLY to the rules below.
+    
+    **Evaluation Rules:**
+      1.  **Exact/Semantic Match:** If the Predicted Text perfectly matches the Gold Standard Text OR conveys *exactly* the same essential information (allowing for minor formatting differences like currency symbols/names, date formats 'YYYY-MM-DD' vs 'Month D, YYYY', synonyms for common words THAT DO NOT CHANGE MEANING, or ignoring harmless extra punctuation like a trailing comma), output a score of **1.0**.
+      2.  **Critical Error/Missing Key Info:** If the Predicted Text contains factually incorrect information compared to the Gold Standard, is completely unrelated, OR misses crucial information present in the Gold Standard, output a score of **0.0**.
+      3.  **List/Array Content (if applicable):** If the content represents a list of items (detectable by structure like `["a","b"]`, `a, b, c`, or line breaks):
+          *   Identify the distinct items in the Gold Standard list (count = `N_gold`).
+          *   Identify the distinct items in the Predicted list (count = `N_pred`).
+          *   Find the number of items present in *both* lists (count = `N_correct`). Treat items case-insensitively and ignore minor whitespace differences for matching list items.
+          *   Calculate Score = (`N_correct` / `N_gold`) * 0.8. If `N_gold` is 0, the score is 1.0 if `N_pred` is also 0, otherwise 0.0. Ensure score does not exceed 0.8.
+          *   *Self-correction: The original prompt's calculation `(1/3)*0.8` seems based on `N_Correct / N_Gold`. Let's stick to that. If Gold is `["A", "B"]` and Predicted is `["A", "C"]`, N_correct=1, N_gold=2, score = (1/2)*0.8 = 0.4.*
+          *   *If the field is NOT list-like, apply rules 1, 2, or 4.*
+      4.  **Partial Match (Other Cases):** If it's not a perfect match (Rule 1), not a critical error (Rule 2), and not a list (Rule 3), estimate the degree of semantic overlap and correctness. For example, if one minor detail is wrong but the rest is correct, assign a score between 0.5 and 0.9. If significant parts are correct but some key info is missing or wrong, assign 0.1 to 0.5. Use your judgment based on how much of the *core information* is preserved.
+      5.  **Empty/Null Cases:**
+          *   If Gold is empty/null/NA and Predicted is also empty/null/NA, score is **1.0**.
+          *   If Gold is empty/null/NA but Predicted has content, score is **0.0**.
+          *   If Gold has content but Predicted is empty/null/NA, score is **0.0**.
+    
+  Output: |
+    Column Name: {column_name}
+    Gold Standard: "{gold_text}"
+    Predicted Text: "{predicted_text}"
+    Match Score: <output>0|1|0.x</output>
+    Note: 无需解释，直接输出<output>0|1|0.x</output>
+
+  Examples: |
+    Examples (Illustrative based on rules):
+      # Rule 1 Example
+      - Column: `产品价格`
+        Gold: `"$19.99"`
+        Predicted: `"19.99美元"`
+        Score: <output>1.0</output>
+
+      # Rule 2 Example
+      - Column: `交货日期`
+        Gold: `"2023-05-15"`
+        Predicted: `"2023年5月16日"`
+        Score: <output>0.0</output>
+
+      # Rule 3 Example (List)
+      - Column: `法律条文`
+        Gold: `["第14条","第39条","第40条"]` # N_gold = 3
+        Predicted: `第14条,第45条`         # N_pred = 2, N_correct = 1 ("第14条")
+        Score: <output>0.27</output>      # (1/3) * 0.8 ≈ 0.266 -> 0.27
+
+      # Rule 3 Example (List)
+      - Column: `关联索引`
+        Gold: `["专利CN2019/001","文献DOI10.1234"]` # N_gold = 2
+        Predicted: `专利CN2019/001`               # N_pred = 1, N_correct = 1
+        Score: <output>0.4</output>              # (1/2) * 0.8 = 0.4
+
+      # Rule 4 Example (Tolerance)
+      - Column: `禁业期限`
+        Gold: `禁止从事运输行业4年`
+        Predicted: `, 禁止从事运输行业四年`
+        Score: <output>1.0</output>
+      
+      - Column: `缓行`
+        Gold: `缓刑一年六个月`
+        Predicted: `一年六个月`
+        Score: <output>1.0</output>
+      
+      - Column: `其他判决`
+        Gold: `无`
+        Predicted: ``
+        Score: <output>1.0</output>
+
+      # Rule 4 Example (Partial)
+      - Column: Description
+        Gold: "Red widget model X-1, uses 2 AA batteries."
+        Predicted: "Red widget version X-1, requires batteries." # Missing battery type/count
+        Score: <output>0.7</output> # Subjective partial score
+
+      # Rule 5 Example both empty
+      - Column: Middle Name
+        Gold: ""
+        Predicted: ""
+        Score: <output>1.0</output>
+
+
+Details:
+  solving_fields_error:
+    Instruction: |
+      使用pandas.read_csv处理CSV文件解析错误："Error tokenizing data. C error: Expected x fields in line y, saw z"
+    
+      这个错误通常是由于CSV文件中的字段含有分隔符（通常是逗号），但没有正确使用引号包围导致的。
+      
+      请根据输入的CSV文本，整理成结构完善、可正确解析的CSV文件。解决方法主要有：
+      
+      1. 对包含逗号、换行符等特殊字符的字段添加双引号
+      2. 只修复有问题的字段，不需要给所有字段都添加引号
+      3. 在特定情况下（如法律条文列表），可考虑将逗号替换为分号、空格或者直接删除逗号，前提是不改变原始数据含义
+      4. 保持原始数据的完整性，只进行必要的格式修复
+      
+      请仔细分析每一行数据，找出可能导致解析错误的字段，然后有针对性地进行修复。
+    Output: |
+      Input: {csv_txt}
+
+      Output:
+        我已经修复了CSV文件中的解析错误。主要问题是某些字段中包含了分隔符（逗号），但没有用引号括起来。
+        请注意
+        以下是修复好的CSV文件（用```csv 和 ```扩起来）：
+
+        <output>
+        ```csv
+        [修复后的CSV内容]
+        ```
+        </output>
+
+        修复内容说明：
+        1. 为包含逗号的字段添加了/修改了xxxx
+        2. 保留了原始数据的其他格式和内容
+        3. [其他针对性修复说明]
+    Examples: |
+      Example 1:
+        Input: 
+          ```csv
+          name,case_name,final_verdict,legal_basis
+          何某毅,何某毅敲诈勒索宣告无罪案,上诉人何某毅无罪,《中华人民共和国刑法》第274条
+          卢某洪,卢某洪敲诈勒索案,被告人卢某洪犯敲诈勒索罪，判处有期徒刑二年六个月，并处罚金人民币三千元；与前罪没有执行完毕的剥夺政治权利并罚，决定执行有期徒刑二年六个月，剥夺政治权利十个月二十五日，并处罚金人民币三千元,《中华人民共和国刑法》第25条,《中华人民共和国刑法》第274条
+          周某宝,周某宝敲诈勒索案,以敲诈勒索罪判处周某宝有期徒刑五年，并处罚金三万元,《中华人民共和国刑法》第274条,《中华人民共和国刑法》第23条,《中华人民共和国刑法》第64条,《中华人民共和国刑事诉讼法》第236条
+          陈某,陈某敲诈勒索案,被告人陈某犯敲诈勒索罪，判处有期徒刑一年三个月，并处罚金人民币三万元,《中华人民共和国刑法》第52条,《中华人民共和国刑法》第53条,《中华人民共和国刑法》第61条,《中华人民共和国刑法》第64条,《中华人民共和国刑法》第67条
+          ```
+        Output: 
+        <output>
+        ```csv
+        name,case_name,final_verdict,legal_basis
+        何某毅,何某毅敲诈勒索宣告无罪案,上诉人何某毅无罪,《中华人民共和国刑法》第274条
+        卢某洪,卢某洪敲诈勒索案,"被告人卢某洪犯敲诈勒索罪，判处有期徒刑二年六个月，并处罚金人民币三千元；与前罪没有执行完毕的剥夺政治权利并罚，决定执行有期徒刑二年六个月，剥夺政治权利十个月二十五日，并处罚金人民币三千元","《中华人民共和国刑法》第25条,《中华人民共和国刑法》第274条"
+        周某宝,周某宝敲诈勒索案,"以敲诈勒索罪判处周某宝有期徒刑五年，并处罚金三万元","《中华人民共和国刑法》第274条,《中华人民共和国刑法》第23条,《中华人民共和国刑法》第64条,《中华人民共和国刑事诉讼法》第236条"
+        陈某,陈某敲诈勒索案,"被告人陈某犯敲诈勒索罪，判处有期徒刑一年三个月，并处罚金人民币三万元","《中华人民共和国刑法》第52条,《中华人民共和国刑法》第53条,《中华人民共和国刑法》第61条,《中华人民共和国刑法》第64条,《中华人民共和国刑法》第67条"
+        ```
+        </output>
+      Example 2:
+        Input: 
+          ```csv
+          文档名称,会计年度,总资产(元),总负债(元),流动负债(元),非流动负债(元),所有者权益(元)
+          "一汽解放2023年年度报告摘要.md",2023,65,873,387,927.31,41,456,628,562.39,20,354,930,407.39,21,101,698,154.32,24,486,759,369.40
+          "上汽集团2023年年度报告摘要.md",2023,1,006,650,278,661.54,696,331,533,035.59,426,650,000,000.00,269,681,533,035.59,286,318,745,625.95
+          "广汽集团2023年年度报告摘要.md",2023,null,null,null,null,null
+          "比亚迪2020年年度报告摘要.md",2023,null,null,null,null,null
+          "长城汽车2023年年度报告摘要.md",2023,null,null,null,null,null
+          ```
+        Output: 
+          <output>
+          ```csv
+          文档名称,会计年度,总资产(元),总负债(元),流动负债(元),非流动负债(元),所有者权益(元)
+          "一汽解放2023年年度报告摘要.md",2023,"65,873,387,927.31","41,456,628,562.39","20,354,930,407.39","21,101,698,154.32","24,486,759,369.40"
+          "上汽集团2023年年度报告摘要.md",2023,"1,006,650,278,661.54","696,331,533,035.59","426,650,000,000.00","269,681,533,035.59","286,318,745,625.95"
+          "广汽集团2023年年度报告摘要.md",2023,null,null,null,null,null
+          "比亚迪2020年年度报告摘要.md",2023,null,null,null,null,null
+          "长城汽车2023年年度报告摘要.md",2023,null,null,null,null,null
+          ```
+          </output>
+
+  mapping_predict_tables:
+    Instruction: |
+      step1:
+        分析列名匹配情况
+        通过分析和语义匹配（包括大小写不敏感和别名/近义词匹配，例如 '报表所属期' ≈ '会计年度', '所有者权益(元)' ≈ '净资产(元)', 'Referenced content' ≈ 'Citation Context', '对应法律条文' ≈ '关联索引', 'Label' ≈ 'Citation Purpose'），找到 Gold_column_names 和 Predict_answers 列名之间的对应关系。
+         提示：如果出现 Predict_answers 中的 列名 过于笼统，可以根据 Gold_column_names 中的列名进行拆分。
+          如：Predict_answers中“判决情况”，Gold_column_names中为“罚金, 刑期, 剥夺政治权利, 缓刑”，则intersection_list中可以加上"罚金", "刑期", "剥夺政治权利", "缓刑", 在step3中根据Predict_answers进行分割与填充
+
+        最终确定的匹配列**intersection_list**, 确保其中的每一项名称都来自于Gold_column_names中
+      step2:
+        确保intersection_list中的每一项都来自于Gold_column_names中
+      step3:
+        把intersection_list作为csv表头名，把Predict_answers中对应的内容填到这个csv中。
+      step4:
+        格式检查，确保生成csv能够使用pd.read_csv处理。如果数字中包含逗号作为千位分隔符，这会导致CSV解析问题，为确保能被`pd.read_csv`正确处理，需要将这些带逗号的数字加引号封装
+
+    Output: |
+      Input:
+        Predict_answers:  
+        ```csv
+         {predict_txt}
+        ```
+        Gold_column_names:
+         {gold_header_string}
+        
+      Output:
+        我已经把predict_txt按照gold_header_string列名对应好，以下是处理好的Predict_csv：
+        ```csv
+        [修复好的完整csv]
+        ```
+
+    Examples: |
+      Example 1:
+        Input: 
+          Predict_answers:
+            ```csv
+            文档名称,会计年度,资产总额(元),营业收入(元),归母净利润(元),净资产(元)
+            大唐电信2020年年度报告摘要.md,2020,3,140,419,345.19,1,207,211,485.29,-1,363,811,107.12,1,449,606,163.07
+            大唐电信2021年年度报告摘要.md,2021,3,456,789,012.45,1,321,345,234.89,-898,765,432.01,1,234,567,891.00
+            大唐电信2022年年度报告摘要.md,2022,4,765,890,123.10,1,467,852,345.56,-789,102,345.67,1,012,345,678.90
+            大唐电信2023年年度报告摘要.md,2023,5,012,345,678.90,1,598,123,456.78,-678,910,234.56,890,123,456.78
+            ```
+          Gold_column_names: 
+            文档名称,报表所属期,资产总额(元),资产总额增长率(%),营业收入(元),营业收入增长率(%),所有者权益(元),加权平均净资产收益率(%)
+        Output:
+          Based on the instructions, I'll process the Predict_answers to match the Gold_column_names and create a properly formatted CSV.
+
+          Step 1: Column name matching analysis:
+          - "文档名称" matches exactly
+          - "会计年度" ≈ "报表所属期"
+          - "资产总额(元)" matches exactly
+          - "营业收入(元)" matches exactly
+          - "净资产(元)" ≈ "所有者权益(元)"
+          - Other columns in Gold_column_names don't have matches in Predict_answers
+
+          Step 2: intersection_list from Gold_column_names:
+          文档名称,报表所属期,资产总额(元),营业收入(元),所有者权益(元)
+
+          Step 3 & 4: Creating the CSV with proper formatting (adding quotes around numbers with commas):
+
+          ```csv
+          文档名称,报表所属期,资产总额(元),营业收入(元),所有者权益(元)
+          大唐电信2020年年度报告摘要.md,2020,"3,140,419,345.19","1,207,211,485.29","1,449,606,163.07"
+          大唐电信2021年年度报告摘要.md,2021,"3,456,789,012.45","1,321,345,234.89","1,234,567,891.00"
+          大唐电信2022年年度报告摘要.md,2022,"4,765,890,123.10","1,467,852,345.56","1,012,345,678.90"
+          大唐电信2023年年度报告摘要.md,2023,"5,012,345,678.90","1,598,123,456.78","890,123,456.78"
+          ```
+      
+      Example 2:
+        Input: 
+          Predict_answers:
+            ```csv
+            Cited Paper Title, Referencing Paper Title, Citation Context, Citation Purpose, Citation Marker
+            "CoNLL03 (Tjong Kim Sang and De Meulder, 2003)"," ""Alignment Precedes Fusion: Open-Vocabulary Named Entity Recognition As Context-Type Semantic Matching"""," ""However", a practical challenge remains in the real-world applications of NER. As depicted in Figure 1 (a), in the supervised setting, traditional methods depend on the pre-defined entity ontology and limited annotated training data. Therefore, these methods can only recognize a fixed number of entity types observed during the training stage. As novel entity types continually emerge in real scenarios," it becomes a non-trivial problem for NER models to handle the **novelemerging** types on the fly at inference time."""," ""background"""," ""CoNLL03 (Tjong Kim Sang and De Meulder"," 2003)"""
+            "OntoNotes 5.0 (Pradhan et al., 2013)"," ""Alignment Precedes Fusion: Open-Vocabulary Named Entity Recognition As Context-Type Semantic Matching"""," ""However", a practical challenge remains in the real-world applications of NER. As depicted in Figure 1 (a), in the supervised setting, traditional methods depend on the pre-defined entity ontology and limited annotated training data. Therefore, these methods can only recognize a fixed number of entity types observed during the training stage. As novel entity types continually emerge in real scenarios," it becomes a non-trivial problem for NER models to handle the **novelemerging** types on the fly at inference time."""," ""background"""," ""OntoNotes 5.0 (Pradhan et al."," 2013)"""
+            Continual Learning Approaches for Sequence Labeling," ""Alignment Precedes Fusion: Open-Vocabulary Named Entity Recognition As Context-Type Semantic Matching"""," ""To tackle this problem", Cao et al. (2020) and Monaikul et al. (2021) propose continual learning approaches for sequence labeling," which require the model to learn new types incrementally without forgetting previous types. Continual learning approaches are inefficient due to the requirement of collecting enough annotated data for new types. Wang et al. (2022) propose continual few-shot NER to reduce the need for annotated data."""," ""methodology"""," ""Cao et al. (2020)"," Monaikul et al. (2021)"""
+            Continual Few-Shot NER," ""Alignment Precedes Fusion: Open-Vocabulary Named Entity Recognition As Context-Type Semantic Matching"""," ""To tackle this problem", Cao et al. (2020) and Monaikul et al. (2021) propose continual learning approaches for sequence labeling," which require the model to learn new types incrementally without forgetting previous types. Continual learning approaches are inefficient due to the requirement of collecting enough annotated data for new types. Wang et al. (2022) propose continual few-shot NER to reduce the need for annotated data."""," ""methodology"""," ""Wang et al. (2022)"""
+            Zero-Shot Learning for NER," ""Alignment Precedes Fusion: Open-Vocabulary Named Entity Recognition As Context-Type Semantic Matching"""," ""Hence", Aly et al. (2021) propose a more efficient zero-shot learning approach for NER, which can recognize unseen entity types without any annotated data. However," zero-shot learning methods learn a limited set of base types and struggle to generalize to novel types in practical applications."""," ""methodology"""," ""Aly et al. (2021)"""
+            Cognitive Psychology on Visual Objects and Semantic Categories," ""Alignment Precedes Fusion: Open-Vocabulary Named Entity Recognition As Context-Type Semantic Matching"""," ""In cognitive psychology", humans can learn to connect visual objects and semantic categories effortlessly through natural supervision, so they have the ability to recognize unseen categories with a wide-ranging vocabulary (Lake et al., 2017; Zareian et al., 2021). Inspired by this, we argue that humans can expand their vocabulary by reading millions of articles," and learn the alignment between entities and concepts through natural supervision."""," ""background"""," ""Lake et al. (2017)"," Zareian et al. (2021)"""
+            ```
+          Gold_column_names: 
+            Cited paper title,Referencing paper title,Referenced content,Label
+        Output:
+          分析Gold_column_names和Predict_answers中的列名匹配情况：
+
+          1. Gold_column_names:
+            - Cited paper title
+            - Referencing paper title
+            - Referenced content
+            - Label
+
+          2. Predict_answers列名:
+            - Cited Paper Title
+            - Referencing Paper Title
+            - Citation Context
+            - Citation Purpose
+            - Citation Marker
+
+          匹配分析：
+          - "Cited paper title" ≈ "Cited Paper Title" (大小写差异，语义相同)
+          - "Referencing paper title" ≈ "Referencing Paper Title" (大小写差异，语义相同)
+          - "Referenced content" ≈ "Citation Context" (语义相似，都表示引用的具体内容)
+          - "Label" ≈ "Citation Purpose" (语义相近，都表示引用的目的/类型)
+
+          因此，intersection_list为：
+          - Cited paper title
+          - Referencing paper title
+          - Referenced content
+          - Label
+
+          按照Gold_column_names格式处理后的CSV：
+
+          ```csv
+          Cited paper title,Referencing paper title,Referenced content,Label
+          "CoNLL03 (Tjong Kim Sang and De Meulder, 2003)","Alignment Precedes Fusion: Open-Vocabulary Named Entity Recognition As Context-Type Semantic Matching","However, a practical challenge remains in the real-world applications of NER. As depicted in Figure 1 (a), in the supervised setting, traditional methods depend on the pre-defined entity ontology and limited annotated training data. Therefore, these methods can only recognize a fixed number of entity types observed during the training stage. As novel entity types continually emerge in real scenarios, it becomes a non-trivial problem for NER models to handle the **novelemerging** types on the fly at inference time.","background"
+          "OntoNotes 5.0 (Pradhan et al., 2013)","Alignment Precedes Fusion: Open-Vocabulary Named Entity Recognition As Context-Type Semantic Matching","However, a practical challenge remains in the real-world applications of NER. As depicted in Figure 1 (a), in the supervised setting, traditional methods depend on the pre-defined entity ontology and limited annotated training data. Therefore, these methods can only recognize a fixed number of entity types observed during the training stage. As novel entity types continually emerge in real scenarios, it becomes a non-trivial problem for NER models to handle the **novelemerging** types on the fly at inference time.","background"
+          "Continual Learning Approaches for Sequence Labeling","Alignment Precedes Fusion: Open-Vocabulary Named Entity Recognition As Context-Type Semantic Matching","To tackle this problem, Cao et al. (2020) and Monaikul et al. (2021) propose continual learning approaches for sequence labeling, which require the model to learn new types incrementally without forgetting previous types. Continual learning approaches are inefficient due to the requirement of collecting enough annotated data for new types. Wang et al. (2022) propose continual few-shot NER to reduce the need for annotated data.","methodology"
+          "Continual Few-Shot NER","Alignment Precedes Fusion: Open-Vocabulary Named Entity Recognition As Context-Type Semantic Matching","To tackle this problem, Cao et al. (2020) and Monaikul et al. (2021) propose continual learning approaches for sequence labeling, which require the model to learn new types incrementally without forgetting previous types. Continual learning approaches are inefficient due to the requirement of collecting enough annotated data for new types. Wang et al. (2022) propose continual few-shot NER to reduce the need for annotated data.","methodology"
+          "Zero-Shot Learning for NER","Alignment Precedes Fusion: Open-Vocabulary Named Entity Recognition As Context-Type Semantic Matching","Hence, Aly et al. (2021) propose a more efficient zero-shot learning approach for NER, which can recognize unseen entity types without any annotated data. However, zero-shot learning methods learn a limited set of base types and struggle to generalize to novel types in practical applications.","methodology"
+          "Cognitive Psychology on Visual Objects and Semantic Categories","Alignment Precedes Fusion: Open-Vocabulary Named Entity Recognition As Context-Type Semantic Matching","In cognitive psychology, humans can learn to connect visual objects and semantic categories effortlessly through natural supervision, so they have the ability to recognize unseen categories with a wide-ranging vocabulary (Lake et al., 2017; Zareian et al., 2021). Inspired by this, we argue that humans can expand their vocabulary by reading millions of articles, and learn the alignment between entities and concepts through natural supervision.","background"
+          ```
+      Example 3:
+        Input: 
+          Predict_answers:
+            ```csv
+            name,case_name,final_verdict,legal_basis
+            何某毅,何某毅敲诈勒索宣告无罪案,上诉人何某毅无罪,《中华人民共和国刑法》第274条
+            卢某洪,卢某洪敲诈勒索案,"被告人卢某洪犯敲诈勒索罪，判处有期徒刑二年六个月，并处罚金人民币三千元；与前罪没有执行完毕的剥夺政治权利并罚，决定执行有期徒刑二年六个月，剥夺政治权利十个月二十五日，并处罚金人民币三千元","《中华人民共和国刑法》第25条,《中华人民共和国刑法》第274条"
+            周某宝,周某宝敲诈勒索案,"以敲诈勒索罪判处周某宝有期徒刑五年，并处罚金三万元","《中华人民共和国刑法》第274条,《中华人民共和国刑法》第23条,《中华人民共和国刑法》第64条,《中华人民共和国刑事诉讼法》第236条"
+            陈某,陈某敲诈勒索案,"被告人陈某犯敲诈勒索罪，判处有期徒刑一年三个月，并处罚金人民币三万元","《中华人民共和国刑法》第52条,《中华人民共和国刑法》第53条,《中华人民共和国刑法》第61条,《中华人民共和国刑法》第64条,《中华人民共和国刑法》第67条"
+            ```
+          Gold_column_names:   
+            案件名,关键词,基本案情,关联索引
+          
+          Output:
+            处理说明：
+            1. **列名映射分析**：
+              - case_name → 案件名
+              - legal_basis → 关联索引
+              因此，intersection_list应为案件名,关联索引。
+
+            2. **数据提取规则**：
+              - 案件名列：直接使用`case_name`字段内容
+              - 关联索引列：
+                - 保留`legal_basis`中完整的法律条文引用
+                - 对包含逗号的单元格添加双引号（如卢某洪、周某宝、陈某条目）
+
+            3. **格式验证**：
+            ```csv
+            案件名,关联索引
+            何某毅敲诈勒索宣告无罪案,《中华人民共和国刑法》第274条
+            卢某洪敲诈勒索案,"《中华人民共和国刑法》第25条,《中华人民共和国刑法》第274条"
+            周某宝敲诈勒索案,"《中华人民共和国刑法》第274条,《中华人民共和国刑法》第23条,《中华人民共和国刑法》第64条,《中华人民共和国刑事诉讼法》第236条"
+            陈某敲诈勒索案,"《中华人民共和国刑法》第52条,《中华人民共和国刑法》第53条,《中华人民共和国刑法》第61条,《中华人民共和国刑法》第64条,《中华人民共和国刑法》第67条
+            ```

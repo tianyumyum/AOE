@@ -1,0 +1,190 @@
+
+en:
+  academic_0:
+    key_cols: ["Cited paper title", "Referencing paper title"]
+    target_value_columns: ["Referenced content","Label"]
+    numeric_columns: []
+    
+  academic_1:
+    key_cols: ["paper_name","method"]
+    target_value_columns: ["result"]
+    numeric_columns: ["result"]  
+
+  financial_0:
+    key_cols: ["Filename"]
+    target_value_columns: [
+      "Reporting Period",
+      "Total Assets (CNY)",
+      "Asset Growth Rate (%)",
+      "Revenue (CNY)",
+      "Revenue Growth Rate (%)",
+      "Total stockholders' equity (CNY)",
+      "Weighted Average Return on Equity (%)"
+    ]
+    numeric_columns: [
+      "Reporting Period",
+      "Total Assets (CNY)",
+      "Asset Growth Rate (%)",
+      "Revenue (CNY)",
+      "Revenue Growth Rate (%)",
+      "Total stockholders' equity (CNY)",
+      "Weighted Average Return on Equity (%)"
+    ]
+
+  financial_1:
+    key_cols: ["Filename"]
+    target_value_columns: [
+      "Reporting Period",
+      "Revenue (CNY)",
+      "Net Profit (CNY)",
+      "Net Profit Margin (%)",
+      "Weighted Average Return on Equity (%)",
+      "Net Profit Growth Rate (%)",
+      "Net cash provided by operating activities (CNY)",
+      "Net Cash Ratio (%)"
+    ]
+    numeric_columns: [
+      "Reporting Period",
+      "Revenue (CNY)",
+      "Net Profit (CNY)",
+      "Net Profit Margin (%)",
+      "Weighted Average Return on Equity (%)",
+      "Net Profit Growth Rate (%)",
+      "Net cash provided by operating activities (CNY)",
+      "Net Cash Ratio (%)"
+    ]
+
+  financial_2:
+    key_cols: ["Filename"]
+    target_value_columns: [
+      "Reporting Period",
+      "Total Liabilities (CNY)",
+      "Liability-to-Asset Ratio (%)",
+      "Operating Cash Flow Growth Rate (%)",
+      "Total Assets (CNY)"
+    ]
+    numeric_columns: [
+      "Reporting Period",
+      "Total Liabilities (CNY)",
+      "Liability-to-Asset Ratio (%)",
+      "Operating Cash Flow Growth Rate (%)",
+      "Total Assets (CNY)"
+    ]
+
+  financial_3:
+    key_cols: ["Filename"]
+    target_value_columns: [
+      "Reporting Period",
+      "Share Capital (Shares)",
+      "Total stockholders' equity (CNY)",
+      "Net Profit (CNY)",
+      "Net Asset per Share (CNY/share)",
+      "Net Profit per Share (CNY/share)",
+      "Weighted Average Return on Equity (%)"
+    ]
+    numeric_columns: [
+      "Reporting Period",
+      "Share Capital (Shares)",
+      "Total stockholders' equity (CNY)",
+      "Net Profit (CNY)",
+      "Net Asset per Share (CNY/share)",
+      "Net Profit per Share (CNY/share)",
+      "Weighted Average Return on Equity (%)"
+    ]
+
+  financial_4:
+    key_cols: ["Filename"]
+    target_value_columns: [
+      "Reporting Period",
+      "Revenue (CNY)",
+      "Net Profit (CNY)",
+      "Net cash provided by operating activities (CNY)"
+    ]
+    numeric_columns: [
+      "Reporting Period",
+      "Revenue (CNY)",
+      "Net Profit (CNY)",
+      "Net cash provided by operating activities (CNY)"
+    ]
+
+  financial_5:
+    key_cols: ["Filename"]
+    target_value_columns: [
+      "Reporting Period",
+      "Total Assets (CNY)",
+      "Liabilities (CNY)",
+      "Total stockholders' equity (CNY)",
+      "Share Capital (Shares)",
+      "Debt to Asset Ratio"
+    ]
+    numeric_columns: [
+      "Reporting Period",
+      "Total Assets (CNY)",
+      "Liabilities (CNY)",
+      "Total stockholders' equity (CNY)",
+      "Share Capital (Shares)",
+      "Debt to Asset Ratio"
+    ]
+
+  financial_6:
+    key_cols: ["Filename"]
+    target_value_columns: [
+      "Net Profit (CNY)",
+      "Total stockholders' equity (CNY)",
+      "Weighted Average Return on Equity (%)",
+      "Earnings per Share (CNY)",
+      "Equity per Share (CNY)"
+    ]
+    numeric_columns: [
+      "Net Profit (CNY)",
+      "Total stockholders' equity (CNY)",
+      "Weighted Average Return on Equity (%)",
+      "Earnings per Share (CNY)",
+      "Equity per Share (CNY)"
+    ]
+
+zh:
+  financial_0:
+    key_cols: ["文档名称"]
+    target_value_columns: ["报表所属期", "资产总额(元)","资产总额增长率(%)","营业收入(元)","营业收入增长率(%)","所有者权益(元)","加权平均净资产收益率(%)"]
+    numeric_columns: ["报表所属期", "资产总额(元)","资产总额增长率(%)","营业收入(元)","营业收入增长率(%)","所有者权益(元)","加权平均净资产收益率(%)"]
+
+  financial_1:
+    key_cols: ["文档名称"]
+    target_value_columns: ["报表所属期", "营业收入(元)", "净利润(元)", "净利润率(%)", "加权平均净资产收益率(%)", "净利润增长率(%)", "经营活动现金流量净额(元)", "净现比(%)"]
+    numeric_columns: ["报表所属期", "营业收入(元)", "净利润(元)", "净利润率(%)", "加权平均净资产收益率(%)", "净利润增长率(%)", "经营活动现金流量净额(元)", "净现比(%)"]
+
+  financial_2:
+    key_cols: ["文档名称"]
+    target_value_columns: ["报表所属期", "负债总额(元)", "资产负债率(%)", "经营现金流增长率(%)", "资产总额(元)"]
+    numeric_columns: ["报表所属期", "负债总额(元)", "资产负债率(%)", "经营现金流增长率(%)", "资产总额(元)"]
+
+  financial_3:
+    key_cols: ["文档名称"]
+    target_value_columns: ["报表所属期", "股本(股)", "所有者权益(元)", "净利润(元)", "每股净资产(元/股)", "每股净利润(元/股)", "加权平均净资产收益率(%)"]
+    numeric_columns: ["报表所属期", "股本(股)", "所有者权益(元)", "净利润(元)", "每股净资产(元/股)", "每股净利润(元/股)", "加权平均净资产收益率(%)"]
+
+  financial_4:
+    key_cols: ["文档名称"]
+    target_value_columns: ["报表所属期", "营业收入(元)", "净利润(元)", "经营活动现金流量净额(元)"]
+    numeric_columns: ["报表所属期", "营业收入(元)", "净利润(元)", "经营活动现金流量净额(元)"]
+
+  financial_5:
+    key_cols: ["文档名称"]
+    target_value_columns: ["报表所属期", "资产总额(元)", "负债总额(元)", "所有者权益(元)", "股本(股)", "资产负债率(%)"]
+    numeric_columns: ["报表所属期", "资产总额(元)", "负债总额(元)", "所有者权益(元)", "股本(股)", "资产负债率(%)"]
+
+  financial_6:
+    key_cols: ["文档名称"]
+    target_value_columns: ["净利润(元)", "所有者权益(元)", "加权平均净资产收益率(%)", "每股收益(元/股)", "每股净资产(元/股)"]
+    numeric_columns: ["净利润(元)", "所有者权益(元)", "加权平均净资产收益率(%)", "每股收益(元/股)", "每股净资产(元/股)"]
+
+  legal_0:
+    key_cols: ["案件名"]
+    target_value_columns: ["关联索引"]
+    numeric_columns: []
+
+  legal_1:
+    key_cols: ["案件名", "被告"]
+    target_value_columns: ["罪名","刑期","缓刑","处罚金","没收个人财产",剥夺政治权利","其他判决"]
+    numeric_columns: []
