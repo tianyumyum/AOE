@@ -287,9 +287,9 @@ Contrary to expectations, RAG enhancement shows **inconsistent and often negativ
 <details>
 <summary><strong>👆 Click to expand RAG results</strong></summary>
 
-| Model | Setting | **Financial** ||| **Legal** ||| **Academic** |||
+| Model | Setting | **Financial** | | | **Legal** | | | **Academic** | | |
 |-------|---------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-|       |         | **Overall Score (%)** | **Pass Rate (%)** | **Cell F1 (%)** | **Overall Score (%)** | **Pass Rate (%)** | **Cell F1 (%)** | **Overall Score (%)** | **Pass Rate (%)** | **Cell F1 (%)** |
+| | | *Overall* | *Pass Rate* | *Cell F1* | *Overall* | *Pass Rate* | *Cell F1* | *Overall* | *Pass Rate* | *Cell F1* |
 | **Google/Gemma-3-27b-it** | +CoT | 32.10 | 79.91 | 8.60 | 52.18 | 73.33 | 18.61 | 58.07 | 71.62 | 0.12 |
 |  | +RAG+CoT | 38.70 ↑ | 96.85 ↑ | 8.00 ↓ | 38.89 ↓ | 95.83 ↑ | 6.04 ↓ | 55.96 ↓ | 94.29 ↑ | 2.70 ↑ |
 | **Glm-4-9b-chat** | +CoT | 56.75 | 80.49 | 14.01 | 58.35 | 86.67 | 22.44 | 45.60 | 71.62 | 2.66 |
